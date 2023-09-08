@@ -1,0 +1,28 @@
+---
+
+- id: 70331967-7b76-4a4d-88f6-d3c9bfffbe3d
+  name: OT Service Scan
+  description: |
+    Scans the local network for common OT ports
+  tactic: discovery
+  technique:
+    attack_id: T0846
+    name: Remote System Discovery
+  repeatable: false
+  platforms:
+    windows:
+      psh:
+        command: |
+          Import-Module ./basic_scanner.ps1;
+          $ports = @(502, 20000);
+          Get-NetIPConfiguration | ?{$_.NetAdapter.Status -ne "Disconnected"} | Get-NetIPaddress -AddressFamily IPv4 | %{
+            $ipv4 = $_.IPAddress;
+            $prefixLength = $_.PrefixLength;
+            Scan-Netrange -ipv4 $ipv4 -prefixLength $prefixLength -ports $ports;
+          };
+        payloads:
+        - basic_scanner.ps1
+        parsers:
+          plugins.ot.app.parsers.scan:
+          - source: modbus.server.ip
+          - source: dnp3.server.ip
