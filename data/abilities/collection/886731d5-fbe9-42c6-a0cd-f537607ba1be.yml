@@ -26,6 +26,6 @@
         command: |
           iptables -A INPUT -p tcp --dport #{redirector.local.port} -j ACCEPT;
           iptables -t nat -A OUTPUT -d #{redirector.remote.ip}/32 -p tcp --dport #{redirector.remote.port} -m mark ! --mark 45 -j REDIRECT --to-port #{redirector.local.port};
-          nohup ./redirector :#{redirector.local.port}:#{redirector.remote.ip}:#{redirector.remote.port} > /tmp/redirector.log 2>&1 &
+          nohup ./redirector :#{redirector.local.port}:#{redirector.remote.ip}:#{redirector.remote.port} #{redirector.type} #{redirector.client.cert} #{redirector.client.key} > /tmp/redirector.log 2>&1 &
         payloads:
         - redirector

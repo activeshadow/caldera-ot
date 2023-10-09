@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -99,11 +100,34 @@ func main() {
 	var (
 		local  = fmt.Sprintf("%s:%s", args[0], args[1])
 		remote = fmt.Sprintf("%s:%s", args[2], args[3])
+
+		l   net.Listener
+		r   net.Conn
+		err error
 	)
 
-	l, err := net.Listen("tcp", local)
-	if err != nil {
-		panic(err)
+	if len(os.Args) > 2 && os.Args[2] == "tls" {
+		c, k, err := generateCert()
+		if err != nil {
+			panic(err)
+		}
+
+		cert, err := tls.X509KeyPair(c, k)
+		if err != nil {
+			panic(err)
+		}
+
+		config := tls.Config{Certificates: []tls.Certificate{cert}}
+
+		l, err = tls.Listen("tcp", local, &config)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		l, err = net.Listen("tcp", local)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	fmt.Printf("listening on %s\n", local)
@@ -130,9 +154,23 @@ func main() {
 		})
 	}
 
-	r, err := dialer.Dial("tcp", remote)
-	if err != nil {
-		panic(err)
+	if len(os.Args) > 2 && os.Args[2] == "tls" {
+		cert, err := tls.LoadX509KeyPair(os.Args[3], os.Args[4])
+		if err != nil {
+			panic(err)
+		}
+
+		config := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+
+		r, err = tls.DialWithDialer(&dialer, "tcp", remote, &config)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		r, err = dialer.Dial("tcp", remote)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	defer r.Close()
