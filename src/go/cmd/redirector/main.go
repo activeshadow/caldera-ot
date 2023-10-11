@@ -57,12 +57,7 @@ func (this *mitm) Read(p []byte) (int, error) {
 
 			tokens := strings.Split(string(payload), ", ")
 
-			// MQTT messages sometimes have leading and trailing spaces (??)
-			origLen := len(tokens[3])
-			value := strings.TrimSpace(tokens[3])
-			trimLen := len(value)
-
-			tokens[3] = strings.Repeat("0", trimLen) + strings.Repeat(" ", origLen-trimLen)
+			tokens[3] = strings.Repeat("0", len(tokens[3]))
 
 			payload = []byte(strings.Join(tokens, ", "))
 
