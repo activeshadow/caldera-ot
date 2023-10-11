@@ -102,7 +102,6 @@ func main() {
 		remote = fmt.Sprintf("%s:%s", args[2], args[3])
 
 		l   net.Listener
-		r   net.Conn
 		err error
 	)
 
@@ -132,11 +131,17 @@ func main() {
 
 	fmt.Printf("listening on %s\n", local)
 
-	c, err := l.Accept()
-	if err != nil {
-		panic(err)
-	}
+	for {
+		c, err := l.Accept()
+		if err != nil {
+			panic(err)
+		}
 
+		go handle(c, remote)
+	}
+}
+
+func handle(c net.Conn, remote string) {
 	defer c.Close()
 
 	fmt.Printf("client at %v connected\n", c.RemoteAddr())
@@ -153,6 +158,11 @@ func main() {
 			fmt.Println("outbound connection marked as 45")
 		})
 	}
+
+	var (
+		r   net.Conn
+		err error
+	)
 
 	if len(os.Args) > 2 && os.Args[2] == "tls" {
 		cert, err := tls.LoadX509KeyPair(os.Args[3], os.Args[4])

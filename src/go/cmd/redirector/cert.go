@@ -36,20 +36,21 @@ func generateCert() ([]byte, []byte, error) {
 		BasicConstraintsValid: true,
 	}
 
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, priv.PublicKey, priv)
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
 	}
 
-	out := &bytes.Buffer{}
-	pem.Encode(out, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	certOut := &bytes.Buffer{}
+	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 
-	cert := out.Bytes()
+	privBytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal private key: %w", err)
+	}
 
-	out.Reset()
-	pem.Encode(out, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+	keyOut := &bytes.Buffer{}
+	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes})
 
-	key := out.Bytes()
-
-	return cert, key, nil
+	return certOut.Bytes(), keyOut.Bytes(), nil
 }
