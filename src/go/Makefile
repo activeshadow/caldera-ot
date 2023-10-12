@@ -1,3 +1,3 @@
-bin/redirector:
+bin/redirector: cmd/redirector/main.go cmd/redirector/cert.go
 	mkdir -p bin
 	GOOS=linux go build -a -ldflags="-s -w" -trimpath -o bin/redirector cmd/redirector/main.go cmd/redirector/cert.go
