@@ -195,7 +195,11 @@ func handle(c net.Conn, remote string) {
 			panic(err)
 		}
 
-		config := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+		config := tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			InsecureSkipVerify: true,
+			ServerName:         os.Args[5],
+		}
 
 		r, err = tls.DialWithDialer(&dialer, "tcp", remote, &config)
 		if err != nil {
