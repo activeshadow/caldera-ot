@@ -1,0 +1,21 @@
+---
+
+- id: 66ff8be0-bee5-4e96-8f66-8c4ebcdf7035
+  name: FrostyGoop Read
+  description: |
+    Uses the FrostyGoop OT Malware payload to send a large number of read
+    commands to a target in a very short period of time. Note the payload
+    expects the target device to be listening for Modbus on port 502.
+  tactic: collection
+  technique:
+    attack_id: T0802
+    name: Automated Collection
+  repeatable: true
+  delete_payload: true
+  platforms:
+    windows:
+      psh:
+        command: >
+          .\bustleberm.exe -ip #{frostygoop.target.ip} -mode read -address #{frostygoop.read.address} -count #{frostygoop.read.count} -debug
+        payloads:
+          - bustleberm.exe
